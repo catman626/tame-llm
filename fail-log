@@ -1,0 +1,28 @@
+[2025-10-30 16:02:36 TP0] Load weight end. type=Qwen2ForCausalLM, dtype=torch.bfloat16, avail mem=39.65 GB, mem usage=7.27 GB.
+[2025-10-30 16:02:36 TP0] Using KV cache dtype: torch.bfloat16
+[2025-10-30 16:02:36 TP1] KV Cache is allocated. #tokens: 1235462, K size: 16.50 GB, V size: 16.50 GB
+[2025-10-30 16:02:36 TP1] Memory pool end. avail mem=4.62 GB
+[2025-10-30 16:02:36 TP0] KV Cache is allocated. #tokens: 1235462, K size: 16.50 GB, V size: 16.50 GB
+[2025-10-30 16:02:36 TP0] Memory pool end. avail mem=4.62 GB
+[2025-10-30 16:02:36 TP0] Capture cuda graph begin. This can take up to several minutes. avail mem=3.99 GB
+[2025-10-30 16:02:36 TP0] Capture cuda graph bs [1, 2, 4, 8, 12, 16, 24, 32]
+[2025-10-30 16:02:36 TP1] Capture cuda graph begin. This can take up to several minutes. avail mem=3.99 GB
+Capturing batches (bs=1 avail_mem=3.77 GB): 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████| 8/8 [00:01<00:00,  6.83it/s]
+[2025-10-30 16:02:38 TP0] Registering 456 cuda graph addresses
+[2025-10-30 16:02:38 TP1] Capture cuda graph end. Time elapsed: 1.77 s. mem usage=0.24 GB. avail mem=3.74 GB.
+[2025-10-30 16:02:38 TP0] Capture cuda graph end. Time elapsed: 1.81 s. mem usage=0.24 GB. avail mem=3.74 GB.
+[2025-10-30 16:02:48 TP0] max_total_num_tokens=1235462, chunked_prefill_size=4096, max_prefill_tokens=16384, max_running_requests=4096, context_len=131072, available_gpu_mem=3.74 GB
+[2025-10-30 16:02:48] INFO:     Started server process [1724223]
+[2025-10-30 16:02:48] INFO:     Waiting for application startup.
+[2025-10-30 16:02:48] Using default chat sampling params from model generation config: {'repetition_penalty': 1.05, 'temperature': 0.7, 'top_k': 20, 'top_p': 0.8}
+[2025-10-30 16:02:48] Using default chat sampling params from model generation config: {'repetition_penalty': 1.05, 'temperature': 0.7, 'top_k': 20, 'top_p': 0.8}
+[2025-10-30 16:02:48] INFO:     Application startup complete.
+[2025-10-30 16:02:48] INFO:     Uvicorn running on http://127.0.0.1:30000 (Press CTRL+C to quit)
+[2025-10-30 16:11:35] Initialization failed. warmup error: Traceback (most recent call last):
+  File "/home/llmserver/inference/sglang/python/sglang/srt/entrypoints/http_server.py", line 1428, in _execute_server_warmup
+    assert res.status_code == 200, f"{res=}, {res.text=}"
+           ^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: res=<Response [502]>, res.text=''
+
+launch_server.sh: line 11: 1724223 Killed                  SGLANG_ALLOW_OVERWRITE_LONGER_CONTEXT_LEN=1 python -m sglang.launch_server --model-path Qwen/Qwen2.5-7B-Instruct --json-model-override-args '{"rope_scaling":{"rope_type":"yarn","factor":4.0,"original_max_position_embeddings":32768}}' --context-length 131072 --tensor-parallel-size 2
+
