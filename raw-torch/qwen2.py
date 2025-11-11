@@ -20,6 +20,7 @@ qwen2_config = {
     "eos_token_id": 151643,
 }
 
+
 # ------------------------------
 # 核心组件（与模型结构相关）
 # ------------------------------
@@ -35,6 +36,7 @@ class RMSNorm(nn.Module):
 
 
 def precompute_rope_freqs(dim: int, max_seq_len: int, theta: float, device: torch.device) :
+    
     inv_freq = 1.0 / (theta** (torch.arange(0, dim, 2, device=device) / dim))
     seq = torch.arange(max_seq_len, device=device, dtype=inv_freq.dtype)
     
@@ -49,16 +51,19 @@ def rotate_half(x):
     x2 = x[..., x.shape[-1] // 2 :]
     return torch.cat((-x2, x1), dim=-1)
 
-def apply_rope(x: torch.Tensor, position_embedding: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+def apply_rope(x: torch.Tensor, position_embedding: tuple[torch.Tensor, torch.Tensor], unsqueeze_dim = 1 ) -> torch.Tensor:
+    # sin, cos in shape (sed_len , hidden_dim)
+    # x might in shape (bs, seq_len, head, hidden_dim) : unsqueeze_dim = 1
+    #               or (bs, head, seq, hidden_dim):      unsqueeze_dim = 0
+
     cos, sin = position_embedding
-    unsqueeze_dim = 1
     cos = cos.unsqueeze(unsqueeze_dim)
     sin = sin.unsqueeze(unsqueeze_dim)
     x_embed  = (x * cos) + (rotate_half(x) * sin)
     return x_embed
 
 class Attention(nn.Module):
-    def __init__(self, hidden_size: int, num_attention_heads: int, num_key_value_heads: int, device: torch.device):
+    def __init__(self, hidden_size: int, num_attention_heads: int, num_key_value_heads: int, device: torch.device, layer_idx:int):
         super().__init__()
         self.num_attention_heads = num_attention_heads
         self.num_key_value_heads = num_key_value_heads
@@ -79,8 +84,12 @@ class Attention(nn.Module):
         v = self.v_proj(hidden_states).view(batch_size, seq_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
 
         # 应用RoPE
-        q = apply_rope(q, position_embedding)
-        k = apply_rope(k, position_embedding)
+        q = apply_rope(q, position_embedding, unsqueeze_dim=0)
+        k = apply_rope(k, position_embedding, unsqueeze_dim=0)
+
+        
+        torch.save(q, f"my/layer{self.layer_idx}.query_after_attn")
+        torch.save(k, f"my/layer{self.layer_idx}.key_after_attn")
 
         # GQA扩展K/V头
         k = k.repeat_interleave(self.num_key_value_groups, dim=1)
@@ -109,10 +118,10 @@ class FeedForward(nn.Module):
 
 class Qwen2Block(nn.Module):
     def __init__(self, hidden_size: int, num_attention_heads: int, num_key_value_heads: int, 
-                 intermediate_size: int, rms_norm_eps: float, device: torch.device):
+                 intermediate_size: int, rms_norm_eps: float, device: torch.device, layer_idx:int):
         super().__init__()
         self.input_layernorm = RMSNorm(hidden_size, eps=rms_norm_eps)
-        self.attention = Attention(hidden_size, num_attention_heads, num_key_value_heads, device)
+        self.attention = Attention(hidden_size, num_attention_heads, num_key_value_heads, device, layer_idx=layer_idx)
         self.post_attention_layernorm = RMSNorm(hidden_size, eps=rms_norm_eps)
         self.feed_forward = FeedForward(hidden_size, intermediate_size, device)
 
@@ -154,8 +163,9 @@ class Qwen2InferenceModel(nn.Module):
                 num_key_value_heads=config["num_key_value_heads"],
                 intermediate_size=config["intermediate_size"],
                 rms_norm_eps=config["rms_norm_eps"],
-                device=device
-            ) for _ in range(config["num_hidden_layers"])
+                device=device,
+                layer_idx=i
+            ) for i in range(config["num_hidden_layers"])
         ])
         self.norm = RMSNorm(self.hidden_size, eps=config["rms_norm_eps"])
         self.lm_head = nn.Linear(self.hidden_size, self.vocab_size, device=device, bias=False)
@@ -340,25 +350,18 @@ def generate(inputs: str|list[str]):
 #     print(rotated)
 
 
-
-
-
 def test_my_model():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"使用设备: {device}")
 
     # 3. 加载模型（此处为随机权重示例，实际需加载预训练权重）
     model = Qwen2InferenceModel(qwen2_config, device)
-    # model.load_from_safetensors()
+    model.load_from_safetensors()
     
-
-    ref_model = Qwen2ForCausalLM.from_pretrained("Qwen/Qwen2-0.5B")
+    ref_model = Qwen2ForCausalLM.from_pretrained("Qwen/Qwen2-0.5B", device_map="auto")
     input_ids = torch.tensor([[100, 200, 300]], device="cuda")
     
     outputs, hiddens = model(input_ids, output_hiddens=True)
-    # ref_layer0 = ref_model.model.layers[0](ref_embed)
-
-    # print("layer0 误差:", torch.norm(ref_layer0 - my_layer0).item())
     
     with torch.no_grad():
         outputs = ref_model(input_ids, output_hidden_states=True)
@@ -370,11 +373,12 @@ def test_my_model():
 
     print(hidden_layer0)
     
-    print("Embedding误差:", torch.norm(hidden_embed - my_embed.to("cpu")).item())
-    print("layer0误差:", torch.norm(hidden_layer0 - my_layer0.to("cpu")).item())
+    print("Embedding误差:", torch.norm(hidden_embed - my_embed).item())
+    print("layer0误差:", torch.norm(hidden_layer0 - my_layer0).item())
 
     # TODO
     # test_rope(my_model=model, ref_model=ref_model)
+
 
 def run_ref_model():
     model_name = "Qwen/Qwen2-0.5B"
@@ -391,6 +395,8 @@ def run_ref_model():
     output_seq = tokenizer.batch_decode(output_token)
 
     print(output_seq)
+
+
     
 
 
