@@ -18,3 +18,10 @@ print(f"权重总数: {len(model.state_dict())}")
 print("="*50)
 for name, param in model.state_dict().items():
     print(f"name: {name}, shape: {param.shape}")
+
+
+
+
+
+
+
