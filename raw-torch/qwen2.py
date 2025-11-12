@@ -116,12 +116,12 @@ class Attention(nn.Module):
             torch.save(k, f"my/layer{self.layer_idx}.key_after_rope")
         
         # GQA扩展K/V头
-        k = k.repeat_interleave(self.num_key_value_groups, dim=1)
-        v = v.repeat_interleave(self.num_key_value_groups, dim=1)
+        # k = k.repeat_interleave(self.num_key_value_groups, dim=1)
+        # v = v.repeat_interleave(self.num_key_value_groups, dim=1)
 
         # 注意力计算
         # attn_output = eager_attention_core(q, k, v, seq_len, self.head_dim, device=self.device)
-        attn_output = F.scaled_dot_product_attention(q, k, v, is_causal=True)
+        attn_output = F.scaled_dot_product_attention(q, k, v, is_causal=True, enable_gqa=True)
 
         if self.layer_idx == 0:
             torch.save(attn_output, "my/layer0.attn_before_o_proj")
