@@ -120,7 +120,8 @@ class Attention(nn.Module):
         v = v.repeat_interleave(self.num_key_value_groups, dim=1)
 
         # 注意力计算
-        attn_output = eager_attention_core(q, k, v, seq_len, self.head_dim, device=self.device)
+        # attn_output = eager_attention_core(q, k, v, seq_len, self.head_dim, device=self.device)
+        attn_output = F.scaled_dot_product_attention(q, k, v, is_causal=True)
 
         if self.layer_idx == 0:
             torch.save(attn_output, "my/layer0.attn_before_o_proj")
