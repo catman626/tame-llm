@@ -62,9 +62,25 @@ def apply_rope(x: torch.Tensor, position_embedding: tuple[torch.Tensor, torch.Te
     x_embed  = (x * cos) + (rotate_half(x) * sin)
     return x_embed
 
+weight_saved = False
+
+def eager_attention_core(q, k, v , seq_len, head_dim, device):
+    casual_mask = torch.triu(torch.ones(seq_len, seq_len, device=device), diagonal=1).bool()
+    casual_mask = casual_mask.unsqueeze(0).unsqueeze(0)
+
+    attn_scores :torch.Tensor= (q @ k.transpose(-2, -1)) / (head_dim **0.5)
+    attn_scores = attn_scores.masked_fill(casual_mask, -torch.inf)
+    attn_weights = F.softmax(attn_scores, dim=-1)
+    attn_output = attn_weights @ v
+
+    return attn_output
+
 class Attention(nn.Module):
     def __init__(self, hidden_size: int, num_attention_heads: int, num_key_value_heads: int, device: torch.device, layer_idx:int):
         super().__init__()
+        
+        self.layer_idx = layer_idx
+        self.device = device
         self.num_attention_heads = num_attention_heads
         self.num_key_value_heads = num_key_value_heads
         self.head_dim = hidden_size // num_attention_heads
@@ -82,27 +98,43 @@ class Attention(nn.Module):
         q = self.q_proj(hidden_states).view(batch_size, seq_len, self.num_attention_heads, self.head_dim).transpose(1, 2)
         k = self.k_proj(hidden_states).view(batch_size, seq_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
         v = self.v_proj(hidden_states).view(batch_size, seq_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
+                
+        if self.layer_idx == 0:
+            torch.save(q, f"my/layer{self.layer_idx}.query")
+            torch.save(k, f"my/layer{self.layer_idx}.key")
+            torch.save(v, f"my/layer{self.layer_idx}.value")
+            print(f" >>> k in shape: {k.shape}")
+            print(f" >>> v in shape: {v.shape}")
+            print(f" >>> q in shape: {q.shape}")
 
         # 应用RoPE
         q = apply_rope(q, position_embedding, unsqueeze_dim=0)
         k = apply_rope(k, position_embedding, unsqueeze_dim=0)
 
+        if self.layer_idx == 0:
+            torch.save(q, f"my/layer{self.layer_idx}.query_after_rope")
+            torch.save(k, f"my/layer{self.layer_idx}.key_after_rope")
         
-        torch.save(q, f"my/layer{self.layer_idx}.query_after_attn")
-        torch.save(k, f"my/layer{self.layer_idx}.key_after_attn")
-
         # GQA扩展K/V头
         k = k.repeat_interleave(self.num_key_value_groups, dim=1)
         v = v.repeat_interleave(self.num_key_value_groups, dim=1)
 
         # 注意力计算
-        attn_scores = (q @ k.transpose(-2, -1)) / (self.head_dim **0.5)
-        attn_weights = F.softmax(attn_scores, dim=-1)
-        attn_output = attn_weights @ v
+        attn_output = eager_attention_core(q, k, v, seq_len, self.head_dim, device=self.device)
 
+        if self.layer_idx == 0:
+            torch.save(attn_output, "my/layer0.attn_before_o_proj")
+            # torch.save(attn_weights, "my/layer0.attn_weights")
         # 合并多头并投影
         attn_output = attn_output.transpose(1, 2).contiguous().view(batch_size, seq_len, -1)
-        return self.o_proj(attn_output)
+
+        attn_output =  self.o_proj(attn_output)
+
+        if self.layer_idx == 0:
+            torch.save(attn_output, "my/layer0.attn_output")
+        
+
+        return attn_output
 
 
 class FeedForward(nn.Module):
@@ -208,10 +240,9 @@ class Qwen2InferenceModel(nn.Module):
             output_hidden_buffer["embed_tokens"] = hidden_states
 
         # 应用所有Transformer层
-        
         for layer in self.layers:
             cos, sin = self.position_embedding
-            hidden_states = layer(hidden_states, (cos[:seq_len], sin[seq_len]))
+            hidden_states = layer(hidden_states, (cos[:seq_len], sin[:seq_len]))
 
             if output_hiddens:
                 output_hidden_buffer["layers"].append(hidden_states)
@@ -282,7 +313,6 @@ class Qwen2InferenceModel(nn.Module):
             name = name.replace("model.", "")
             name = name.replace("self_attn", "attention")
             name = name.replace("mlp", "feed_forward")
-
             
             assert name in model_weightnames, f" weight not in model: {name}"
 
@@ -295,76 +325,55 @@ class Qwen2InferenceModel(nn.Module):
 # ------------------------------
 # 推理示例
 # ------------------------------
-def generate(inputs: str|list[str]):
-
-    # 2. 初始化设备
+# def generate(inputs: str|list[str]):
+def generate():
+    # 2, device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"使用设备: {device}")
-
-    # 3. 加载模型（此处为随机权重示例，实际需加载预训练权重）
     model = Qwen2InferenceModel(qwen2_config, device)
-    
-    # 注意：实际使用时需加载预训练权重，例如：
-    model_weightnames = model.state_dict().keys()
+
+    # model 
     model_path = "/home/llmserver/.cache/huggingface/hub/models--Qwen--Qwen2-0.5B/snapshots/91d2aff3f957f99e4c74c962f2f408dcc88a18d8/model.safetensors"
-    loaded_weights = load_file(model_path, device="cuda")
-    converted_weights = {}
-    for name, weight in loaded_weights.items():
-        name = name.replace("model.", "")
-        name = name.replace("self_attn", "attention")
-        name = name.replace("mlp", "feed_forward")
+    model.load_from_safetensors(model_path)
 
-        
-        assert name in model_weightnames, f" weight not in model: {name}"
-
-        converted_weights[name] = weight
-
-    converted_weights["lm_head.weight"] = converted_weights["embed_tokens.weight"]
-    model.load_state_dict(converted_weights)
-
-
-    # 4. 加载分词器（需使用与Qwen2匹配的分词器）
+    # tokenizer
     tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2-0.5B")
     # 确保分词器的特殊token与模型一致
     tokenizer.bos_token_id = qwen2_config["bos_token_id"]
     tokenizer.eos_token_id = qwen2_config["eos_token_id"]
 
-    # 5. 文本生成示例
-    # prompt = "Paris is the capital city of"
-    # generated_text = model.generate(
-    #     prompt=prompt,
-    #     tokenizer=tokenizer,
-    #     max_new_tokens=50,
-    #     temperature=0.7
-    # )
-    # print(f"输入: {prompt}")
-    # print(f"生成: {generated_text}")
+    # casual inputs
+    prompt = "Paris is the capital city of"
+    generated_text = model.generate(
+        prompt=prompt,
+        tokenizer=tokenizer,
+        max_new_tokens=50,
+        temperature=0.7
+    )
+    print(f" >>> prompt: {prompt}")
+    print(f" >>> generated: {generated_text}")
 
 
-
-# TODO
-# def test_rope(my_model, ref_model:Qwen2ForCausalLM):
-#     ref_embd = ref_model.model.layers[0].self_attn.rotary_emb
-#     rotated = ref_embd(torch.arange(3, device=ref_model.device))
-
-#     print(rotated)
 
 
 def test_my_model():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"使用设备: {device}")
+    
+    # casual input_ids
+    input_ids = torch.tensor([[100, 200, 300]], device="cuda")
 
-    # 3. 加载模型（此处为随机权重示例，实际需加载预训练权重）
+    # my model
     model = Qwen2InferenceModel(qwen2_config, device)
     model.load_from_safetensors()
+    outputs, hiddens = model(input_ids, output_hiddens=True)
+    
     
     ref_model = Qwen2ForCausalLM.from_pretrained("Qwen/Qwen2-0.5B", device_map="auto")
-    input_ids = torch.tensor([[100, 200, 300]], device="cuda")
-    
-    outputs, hiddens = model(input_ids, output_hiddens=True)
     
     with torch.no_grad():
         outputs = ref_model(input_ids, output_hidden_states=True)
+    
     hidden_embed = outputs.hidden_states[0]
     hidden_layer0 = outputs.hidden_states[1]
 
@@ -396,11 +405,9 @@ def run_ref_model():
 
     print(output_seq)
 
-
-    
-
-
 if __name__ == "__main__":
     test_my_model()
     
     # run_ref_model()
+
+    # generate()
