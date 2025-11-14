@@ -62,7 +62,6 @@ def apply_rope(x: torch.Tensor, position_embedding: tuple[torch.Tensor, torch.Te
     x_embed  = (x * cos) + (rotate_half(x) * sin)
     return x_embed
 
-weight_saved = False
 
 def eager_attention_core(q, k, v , seq_len, head_dim, device):
     casual_mask = torch.triu(torch.ones(seq_len, seq_len, device=device), diagonal=1).bool()
