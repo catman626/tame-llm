@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from typing import Optional, List, Tuple
 from transformers import Qwen2ForCausalLM, AutoTokenizer
 from safetensors.torch import load_file
+import os
 
 # 1. 定义模型配置（与Qwen2-0.5B完全匹配）
 qwen2_config = {
@@ -368,7 +369,6 @@ def test_my_model():
     model.load_from_safetensors()
     outputs, hiddens = model(input_ids, output_hiddens=True)
     
-    
     ref_model = Qwen2ForCausalLM.from_pretrained("Qwen/Qwen2-0.5B", device_map="auto")
     
     with torch.no_grad():
@@ -385,8 +385,10 @@ def test_my_model():
     print("Embedding误差:", torch.norm(hidden_embed - my_embed).item())
     print("layer0误差:", torch.norm(hidden_layer0 - my_layer0).item())
 
-    # TODO
-    # test_rope(my_model=model, ref_model=ref_model)
+
+    # torch.save(outputs.tokens_embed, "golden/tokens_embed")
+    for hno, h in enumerate(outputs.hidden_states):
+        torch.save(h, os.path.join("golden", f"layer-{hno}"))
 
 
 def run_ref_model():
