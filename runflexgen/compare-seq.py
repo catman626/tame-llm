@@ -3,9 +3,15 @@ import os, sys
 
 
 def compare(v1:torch.Tensor, v2:torch.Tensor):
-    assert v1.shape == v2.shape, f" >>> shape different: {v1.shape} VS {v2.shape}"
+    # assert v1.shape == v2.shape, f" >>> shape different: {v1.shape} VS {v2.shape}"
     v1 = v1.cpu()
     v2 = v2.cpu()
+    
+    # (b, head, s, h)
+    # v1 = v1.permute()
+    # v1 = v1[:, :, -1]
+    v2 = v2[:, :, :-2]
+
     diff_l2_norm = torch.norm(v1 - v2).item()
     print(f" >>> difference: {diff_l2_norm}")
 

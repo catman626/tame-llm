@@ -40,19 +40,7 @@ if __name__ == "__main__":
     my_value = torch.load(my_value_file)
     golden_value = torch.load(golden_value_file)
 
-    if len(sys.argv) >= 4:
-        seq_dim_spec = sys.argv[3]
-        if "-" in seq_dim_spec:
-            seq_dims = seq_dim_spec.split('-')
-            assert len(seq_dims) == 2
-            # seq_dims = [int(d) for d in seq_dims]
-            my_value = index_into(my_value, seq_dims[0])
-            golden_value = index_into(my_value, seq_dims[1])
-
-        else :
-            
-            golden_value = index_into(golden_value, seq_dim=seq_dim_spec)
-
+    golden_value = golden_value[:, :, -1:] 
 
     compare(my_value, golden_value)
     # compare_seq(my_value, golden_value)

@@ -122,6 +122,8 @@ class Attention(nn.Module):
         # 注意力计算
         # attn_output = eager_attention_core(q, k, v, seq_len, self.head_dim, device=self.device)
         attn_output = F.scaled_dot_product_attention(q, k, v, is_causal=True, enable_gqa=True)
+        torch.save(attn_output, f"golden/layer-{self.layer_idx}-sdpa") 
+
 
         if self.layer_idx == 0:
             torch.save(attn_output, "my/layer0.attn_before_o_proj")
@@ -385,31 +387,52 @@ def test_my_model():
     print("Embedding误差:", torch.norm(hidden_embed - my_embed).item())
     print("layer0误差:", torch.norm(hidden_layer0 - my_layer0).item())
 
-
     # torch.save(outputs.tokens_embed, "golden/tokens_embed")
     for hno, h in enumerate(outputs.hidden_states):
-        torch.save(h, os.path.join("golden", f"layer-{hno}"))
+        if hno >= 1:
+            torch.save(h, os.path.join("golden", f"layer-{hno-1}-final"))
 
 
-def run_ref_model():
+def ref_model_generate():
     model_name = "Qwen/Qwen2-0.5B"
     model = Qwen2ForCausalLM.from_pretrained(model_name)
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    prompt = "Paris is the capital city of"
-
+    prompt = ["Paris is the capital city of"]
+    
     input_ids = tokenizer(prompt).input_ids
-    input_ids = torch.tensor([input_ids, ])
-    output_ids = model(input_ids)
-    output_token = output_ids[:, -1:].argmax()
+    input_ids = torch.tensor(input_ids)
 
-    # output_seq = output_ids
-    output_seq = tokenizer.batch_decode(output_token)
+    outputs = model.generate(input_ids,  max_new_tokens=10)
+    
+    outputs = tokenizer.batch_decode(outputs)
 
-    print(output_seq)
+    print(outputs)
+
+
+def ref_model_generate_golden(input_ids, gen_len=1):
+    model_name = "Qwen/Qwen2-0.5B"
+    model = Qwen2ForCausalLM.from_pretrained(model_name)
+
+    input_tokens = torch.tensor(input_ids)
+
+    for i in range(gen_len):
+        outputs = model(input_tokens)
+
+        next_token = outputs.logits[:, -1:, :]   # (B, 1, vocab)
+        selected = next_token.argmax(dim=-1)    # (B, 1)
+        input_tokens = torch.concat([input_tokens, selected], dim=1)
+
+    print(input_tokens)
 
 if __name__ == "__main__":
-    test_my_model()
+    # test_my_model()
     
     # run_ref_model()
 
     # generate()
+
+    ref_model_generate_golden([[100, 200, 300]], gen_len=2)
+    # ref_model_generate_golden([[100, 200, 300]], gen_len=3)
+    # ref_model_generate_golden([[100, 200, 300, 279]])
+
+    # ref_model_generate()
