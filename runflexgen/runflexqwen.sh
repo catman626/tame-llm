@@ -13,9 +13,12 @@ model=Qwen/Qwen2-7B
 python -m flexllmgen.flex_qwen2 \
 	--model $model \
 	--gpu-batch-size 8 \
+	--num-gpu-batches 2 \
 	--prompt-len 2048 \
 	--gen-len 256 \
-	--sparse-mode naive --attn-sparsity 0.1
+	--sparse-mode block
+	# --sparse-mode naive --attn-sparsity 0.1
+	
 
 
 # python -m flexllmgen.flex_qwen2 --model Qwen/Qwen2-0.5B-Instruct --prompt-len 2048 --gen-len 256
