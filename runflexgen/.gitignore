@@ -2,4 +2,5 @@ my/
 golden/
 *.log
 flexllmgen_offload_dir/
+__pycache__
 

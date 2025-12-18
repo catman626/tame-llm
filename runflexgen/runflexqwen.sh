@@ -8,7 +8,8 @@
 
 # model=Qwen/Qwen2-0.5B
 # model=Qwen/Qwen2-0.5B-Instruct 
-model=Qwen/Qwen2-7B
+# model=Qwen/Qwen2-7B
+model="/home/llmserver/.cache/huggingface/hub/models--Qwen--Qwen2-0.5B/snapshots/91d2aff3f957f99e4c74c962f2f408dcc88a18d8"
 
 python -m flexllmgen.flex_qwen2 \
 	--model $model \
@@ -16,7 +17,8 @@ python -m flexllmgen.flex_qwen2 \
 	--num-gpu-batches 2 \
 	--prompt-len 2048 \
 	--gen-len 256 \
-	--sparse-mode block
+	--sparse-mode block \
+	--sep-layer False
 	# --sparse-mode naive --attn-sparsity 0.1
 	
 
