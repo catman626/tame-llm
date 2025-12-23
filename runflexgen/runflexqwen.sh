@@ -15,10 +15,11 @@ python -m flexllmgen.flex_qwen2 \
 	--model $model \
 	--gpu-batch-size 8 \
 	--num-gpu-batches 2 \
-	--prompt-len 2048 \
+	--prompt-len 2100 \
 	--gen-len 256 \
 	--sparse-mode block \
-	--sep-layer False
+	--sep-layer False \
+	--log-file log
 	# --sparse-mode naive --attn-sparsity 0.1
 	
 
