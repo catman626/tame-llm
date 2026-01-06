@@ -18,9 +18,9 @@ python -m flexllmgen.flex_qwen2 \
 	--prompt-len 2100 \
 	--gen-len 128 \
 	--sep-layer False \
-	--sparse-mode block \
 	--log-file log \
-	--percent 100 0 0 100 100 0 
+	--percent 100 0 0 100 100 0 \
+	# --sparse-mode block \
 	# --sparse-mode naive --attn-sparsity 0.1
 	
 

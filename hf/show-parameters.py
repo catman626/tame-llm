@@ -20,8 +20,3 @@ for name, param in model.state_dict().items():
     print(f"name: {name}, shape: {param.shape}")
 
 
-
-
-
-
-
