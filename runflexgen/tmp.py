@@ -1,25 +1,16 @@
-import torch
+import numpy as np
 
-# 创建一个测试张量 (4D)
-a = torch.randn(2, 3, 3000, 4)
+a = np.array([
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9]
+])
+b = np.array([
+    [0, 1, 0],
+    [1, 0, 0],
+    [0,0,1]
+])
 
-# 方法一：使用 None (隐式)
-indices1 = (None, None, slice(0, 2048), None)
-result1 = a[indices1]
+c = a@b
 
-# 方法二：使用 slice(None) (显式)
-indices2 = (slice(None), slice(None), slice(0, 2048), slice(None))
-result2 = a[indices2]
-
-# 验证结果是否完全相同
-print(f"形状相同: {result1.shape == result2.shape}") # 输出: True
-print(f"数值相同: {torch.equal(result1, result2)}")  # 输出: True
-
-
-
-print("hello world")
-
-
-for r in range(10):
-    print("r, ")
-
+print(c)

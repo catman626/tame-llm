@@ -112,7 +112,6 @@ def _triton_block_sparse_attn_fwd_kernel(
     acc /= l_i[:, None]
     tl.store(o_ptrs, acc.to(dtype), mask=m_mask)
 
-
 def _triton_block_sparse_attention(
     q,                 # [BATCH, N_HEADS, N_CTX, D_HEAD]
     k,                 # [BATCH, N_HEADS, N_CTX, D_HEAD]
@@ -147,7 +146,6 @@ def _triton_block_sparse_attention(
     )
 
     return o
-
 
 def _build_block_index(
     query: torch.Tensor,     # [BATCH, N_HEADS, N_CTX, D_HEAD]
@@ -190,7 +188,6 @@ def block_sparse_attention(
     print(f" >>> shape of block_index: {block_index.shape}")
     out = _triton_block_sparse_attention(query, key, value, seqlens, block_index, sm_scale, block_size_M, block_size_N)
     return out[..., :context_size, :]
-
     
 def naive_attn(q:torch.Tensor, k:torch.Tensor, v:torch.Tensor):
     HEAD_DIM = q.shape[-1]

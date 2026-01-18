@@ -2,3 +2,6 @@
 	path = ml-api
 	url = git@github.com:catman626/ml-api.git
 	branch = master
+[submodule "longbench/Longbench"]
+	path = longbench/Longbench
+	url = https://github.com/THUDM/LongBench.git

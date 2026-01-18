@@ -2,5 +2,7 @@ my/
 golden/
 *.log
 flexllmgen_offload_dir/
+trace_memory.json
+
 __pycache__
 

@@ -11,4 +11,4 @@
 
 # try to use cpu compute mha
 # not working
-python -m flexllmgen.flex_opt --model facebook/opt-125m --prompt-len 100 --gen-len 32 
+python -m flexllmgen.flex_opt --model facebook/opt-125m --prompt-len 100 --gen-len 32 --gpu-batch-size 8
