@@ -63,17 +63,19 @@ def test_output(func1, func2):
     else:
         print("idx funcs differ")
         
-        
-
-def test_time(idx_func):
+def make_data_idx(device):
     b,h,s,d=1,28,100000,128
     k = s // 10
     h_kv=4
 
-    gpu_data = torch.ones(b,h_kv,s,d,dtype=torch.bfloat16, device="cuda")
-    cpu_data = torch.ones(b,h_kv,s,d,dtype=torch.bfloat16, device="cpu")
-    gpu_idx = torch.zeros(b,h,k, dtype=torch.int32, device="cuda")
-    cpu_idx = torch.zeros(b,h,k, dtype=torch.int32, device="cpu")
+    data = torch.ones(b,h_kv,s,d,dtype=torch.bfloat16, device=device)
+    idx = torch.zeros(b,h,k, dtype=torch.int32, device=device)
+
+    return data, idx
+
+def test_time(idx_func):
+    gpu_data, gpu_idx = make_data_idx("cuda")
+    cpu_data, cpu_idx = make_data_idx("cpu")
 
     _ = single_test(gpu_data, gpu_idx, idx_func)
     _ = single_test(cpu_data, cpu_idx, idx_func)
@@ -83,11 +85,6 @@ def test_time(idx_func):
 
     print(f" >>> gpu_time: {gpu_time} s")
     print(f" >>> cpu_time: {cpu_time} s")
-
-    
-
-
-
 
 
 if __name__ == "__main__":
