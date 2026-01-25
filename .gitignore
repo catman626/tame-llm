@@ -1,3 +1,5 @@
+*.svg
+*.png
 raw-torch/golden
 raw-torch/my
 runflexgen/fo-*

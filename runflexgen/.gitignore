@@ -3,6 +3,8 @@ golden/
 *.log
 flexllmgen_offload_dir/
 trace_memory.json
+logs
+
 
 __pycache__
 
