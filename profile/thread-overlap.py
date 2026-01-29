@@ -110,8 +110,6 @@ def make_data_idx(device):
 
     return data, idx
 
-    
-
 def make_up_down_projs_data(dev="cuda"):
     b,h,s,d=1,28,10000,128
     up_s = 1
