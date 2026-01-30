@@ -31,7 +31,6 @@ def measure_3tasks():
 
     return default_nosync, default_sync, non_default_no_sync, non_default_sync 
 
-
 def test_streams_ret_time():
     repeat = 10
     default_nosync, default_sync, non_default_no_sync, non_default_sync  = 0,0,0,0
@@ -42,10 +41,10 @@ def test_streams_ret_time():
         non_default_no_sync += nd
         non_default_sync += nds
     
-    default_nosync = default_nosync / repeat
-    default_sync = default_sync / repeat
-    non_default_no_sync = non_default_no_sync / repeat
-    non_default_sync = non_default_sync / repeat
+    default_nosync      = default_nosync        / repeat
+    default_sync        = default_sync          / repeat
+    non_default_no_sync = non_default_no_sync   / repeat
+    non_default_sync    = non_default_sync      / repeat
 
     print(f" >>> default_nosync: {default_nosync}")
     print(f" >>> default_sync: {default_sync}")
